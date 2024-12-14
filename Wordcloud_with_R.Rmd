@@ -1,0 +1,99 @@
+---
+title: "R for Wordcloud Analysis"
+author: "Ali Adebiyi (Alisonia StatGuide)"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data
+
+Click [MoviesLens 25M Rating](https://grouplens.org/datasets/movielens/25m/) and using the `tags.csv` file.
+
+
+# Data Processing
+
+The `tags.csv` file was cleaned by: \
+- Removing punctuation \
+- Converting all text to lowercase \
+- Removing stop words like "the", "and", and "of" \
+- Removing excess whitespace before generating the word cloud.
+
+
+```{r message=FALSE, warning=FALSE}
+#importing libraries and loading the data
+library(readr)
+library(dplyr)
+library(tm)
+library(wordcloud)
+library(RColorBrewer)
+
+tags <- read_csv("tags.csv")
+head(tags)
+```
+
+```{r}
+#Data cleaning
+# converting the tags to UTF-8 and replace any invalid entries with NA
+tags$tag_clean <- iconv(tags$tag, from = "UTF-8", to = "UTF-8", sub = "byte")
+
+#removing non-ASCII characters such as ï¿¿ and so on
+tags$tag_clean <- gsub("[^[:alnum:][:space:]]", "", tags$tag_clean)
+
+tags_clean <- tags$tag_clean  #assigning only the columns needed for further analysis
+
+# Check the cleaned data
+head(tags_clean)
+```
+
+```{r }
+#data cleaning
+# Convert tags column to lowercase and remove punctuation
+tags_clean <- tolower(tags_clean)
+tags_clean <- removePunctuation(tags_clean)
+
+head(tags_clean, 20)
+```
+
+```{r warning=FALSE}
+# Create a text corpus
+corpus <- Corpus(VectorSource(tags_clean))
+
+# Remove stop words (common words like "the", "and", "of", etc.)
+corpus <- tm_map(corpus, removeWords, stopwords("en"))
+
+# remove exra extra whitespace
+corpus <- tm_map(corpus, stripWhitespace)
+```
+
+
+```{r }
+#Creating the word cloud
+# Convert the corpus to a plain text document
+tdm <- TermDocumentMatrix(corpus)
+tdm_reduced <- removeSparseTerms(tdm, sparse = 0.999) #filter out terms with low frequency for memory efficient
+
+matrix <- as.matrix(tdm_reduced)
+word_freq <- sort(rowSums(matrix), decreasing = TRUE)
+df <- data.frame(word = names(word_freq), freq = word_freq)
+head(df)
+```
+
+```{r warning=FALSE}
+# Create the word cloud
+set.seed(123) # For reproducibility
+wordcloud(
+  words = df$word,
+  freq = df$freq,
+  min.freq = 5,  # Adjust the minimum frequency threshold
+  max.words = 100, # Maximum number of words to display
+  random.order = FALSE, # Words in order of frequency
+  rot.per = 0.35, # Percentage of words to rotate
+  colors = brewer.pal(8, "Dark2") # Color palette
+)
+```
